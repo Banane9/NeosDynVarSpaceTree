@@ -88,6 +88,7 @@ namespace DynVarSpaceTree
 
         private bool isLinkedDynVar(IDynamicVariable dynVar)
         {
+            // Can't directly access the handler fields without casting to the concrete generic type
             return Traverse.Create(dynVar).Field("handler").Field("_currentSpace").GetValue() == space;
         }
     }

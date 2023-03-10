@@ -18,22 +18,22 @@ namespace DynVarSpaceTree
 {
     public class DynVarSpaceTree : NeosMod
     {
-        public static ModConfiguration Config;
+        [AutoRegisterConfigKey]
+        private static readonly ModConfigurationKey<bool> EnableLinkedVariablesList = new ModConfigurationKey<bool>("EnableLinkedVariablesList", "Allow generating a list of dynamic variable definitions for a space.", () => true);
 
         [AutoRegisterConfigKey]
-        private static ModConfigurationKey<bool> EnableLinkedVariablesList = new ModConfigurationKey<bool>("EnableLinkedVariablesList", "Allow generating a list of dynamic variable definitions for a space.", () => true);
+        private static readonly ModConfigurationKey<bool> EnableVariableHierarchy = new ModConfigurationKey<bool>("EnableVariableHierarchy", "Allow generating a hierarchy of dynamic variable components for a space.", () => true);
 
-        [AutoRegisterConfigKey]
-        private static ModConfigurationKey<bool> EnableVariableHierarchy = new ModConfigurationKey<bool>("EnableVariableHierarchy", "Allow generating a hierarchy of dynamic variable components for a space.", () => true);
+        private static ModConfiguration Config;
 
         public override string Author => "Banane9";
         public override string Link => "https://github.com/Banane9/NeosDynVarSpaceTree";
         public override string Name => "DynVarSpaceTree";
-        public override string Version => "1.0.0";
+        public override string Version => "1.0.1";
 
         public override void OnEngineInit()
         {
-            Harmony harmony = new Harmony($"{Author}.{Name}");
+            var harmony = new Harmony($"{Author}.{Name}");
             Config = GetConfiguration();
             Config.Save(true);
             harmony.PatchAll();
@@ -51,14 +51,14 @@ namespace DynVarSpaceTree
 
                 if (Config.GetValue(EnableLinkedVariablesList))
                 {
-                    var namesButton = ui.Button("Copy Names of linked Variables");
+                    var namesButton = ui.Button("Copy Names of linked Variables", color.Pink);
                     namesButton.LocalPressed += (button, data) => copyVariableNames(space);
                     namesButton.RequireLockInToPress.Value = true;
                 }
 
                 if (Config.GetValue(EnableVariableHierarchy))
                 {
-                    var treeButton = ui.Button("Copy Tree of linked Variable Hierarchy");
+                    var treeButton = ui.Button("Copy Tree of linked Variable Hierarchy", color.Pink);
                     treeButton.LocalPressed += (button, data) => copyVariableHierarchy(space);
                     treeButton.RequireLockInToPress.Value = true;
                 }
@@ -76,29 +76,23 @@ namespace DynVarSpaceTree
 
             private static void copyVariableNames(DynamicVariableSpace space)
             {
-                var identities = getDynamicValues(space).Keys;
                 var names = new StringBuilder("Variables linked to Namespace ");
                 names.Append(space.SpaceName);
                 names.AppendLine(":");
 
-                foreach (var identity in identities)
+                foreach (var identity in space._dynamicValues.Keys)
                 {
                     var traverse = Traverse.Create(identity);
 
-                    names.Append((string)traverse.Field("name").GetValue());
+                    names.Append(identity.name);
                     names.Append(" (");
-                    names.AppendTypeName((Type)traverse.Field("type").GetValue());
+                    names.AppendTypeName(identity.type);
                     names.AppendLine(")");
                 }
 
                 names.Remove(names.Length - Environment.NewLine.Length, Environment.NewLine.Length);
 
                 space.InputInterface.Clipboard.SetText(names.ToString());
-            }
-
-            private static IDictionary getDynamicValues(DynamicVariableSpace space)
-            {
-                return (IDictionary)Traverse.Create(space).Field("_dynamicValues").GetValue();
             }
         }
     }
