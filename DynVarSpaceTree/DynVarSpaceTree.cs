@@ -37,25 +37,20 @@ namespace DynVarSpaceTree
             Config = GetConfiguration();
             Config.Save(true);
             harmony.PatchAll();
+            CustomUILib.CustomUILib.AddCustomInspector<DynamicVariableSpace>(WorkerInspectorPatches.BuildInspectorUI);
         }
 
-        [HarmonyPatch(typeof(WorkerInspector))]
         private static class WorkerInspectorPatches
         {
-            [HarmonyPostfix]
-            [HarmonyPatch(nameof(WorkerInspector.BuildInspectorUI))]
-            private static void BuildInspectorUIPostfix(Worker worker, UIBuilder ui)
+            internal static void BuildInspectorUI(DynamicVariableSpace space, UIBuilder ui)
             {
-                if (!(worker is DynamicVariableSpace space))
-                    return;
-
+                CustomUILib.CustomUILib.BuildInspectorUI(space, ui);
                 if (Config.GetValue(EnableLinkedVariablesList))
                 {
                     var namesButton = ui.Button("Copy Names of linked Variables", color.Pink);
                     namesButton.LocalPressed += (button, data) => copyVariableNames(space);
                     namesButton.RequireLockInToPress.Value = true;
                 }
-
                 if (Config.GetValue(EnableVariableHierarchy))
                 {
                     var treeButton = ui.Button("Copy Tree of linked Variable Hierarchy", color.Pink);
@@ -82,8 +77,6 @@ namespace DynVarSpaceTree
 
                 foreach (var identity in space._dynamicValues.Keys)
                 {
-                    var traverse = Traverse.Create(identity);
-
                     names.Append(identity.name);
                     names.Append(" (");
                     names.AppendTypeName(identity.type);
