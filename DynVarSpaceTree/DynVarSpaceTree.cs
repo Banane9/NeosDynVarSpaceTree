@@ -33,13 +33,11 @@ namespace DynVarSpaceTree
             Config = GetConfiguration();
             Config.Save(true);
             harmony.PatchAll();
-            CustomUILib.CustomUILib.AddCustomInspector<DynamicVariableSpace>(BuildInspectorUI);
+            CustomUILib.CustomUILib.AddCustomInspectorAfter<DynamicVariableSpace>(BuildInspectorUI);
         }
 
         private static void BuildInspectorUI(DynamicVariableSpace space, UIBuilder ui)
         {
-            CustomUILib.CustomUILib.BuildInspectorUI(space, ui);
-
             var outputField = ui.Current.AttachComponent<ValueField<string>>();
 
             if (Config.GetValue(EnableLinkedVariablesList))
