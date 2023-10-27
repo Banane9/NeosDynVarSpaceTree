@@ -4,15 +4,16 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Text;
-using BaseX;
+using Elements.Core;
 using FrooxEngine;
 using FrooxEngine.UIX;
 using HarmonyLib;
-using NeosModLoader;
+using ResoniteModLoader;
+using static FrooxEngine.DynamicVariableSpace;
 
 namespace DynVarSpaceTree
 {
-    public class DynVarSpaceTree : NeosMod
+    public class DynVarSpaceTree : ResoniteMod
     {
         [AutoRegisterConfigKey]
         private static readonly ModConfigurationKey<bool> EnableLinkedVariablesList = new("EnableLinkedVariablesList", "Allow generating a list of dynamic variable definitions for a space.", () => true);
@@ -23,7 +24,7 @@ namespace DynVarSpaceTree
         private static ModConfiguration Config;
 
         public override string Author => "Banane9";
-        public override string Link => "https://github.com/Banane9/NeosDynVarSpaceTree";
+        public override string Link => "https://github.com/Banane9/ResoniteDynVarSpaceTree";
         public override string Name => "DynVarSpaceTree";
         public override string Version => "2.0.0";
 
@@ -38,57 +39,51 @@ namespace DynVarSpaceTree
 
         private static void BuildInspectorUI(DynamicVariableSpace space, UIBuilder ui)
         {
-            var outputField = ui.Current.AttachComponent<ValueField<string>>();
-
             if (Config.GetValue(EnableLinkedVariablesList))
-                MakeButton(ui, "Output names of linked Variables", () => OutputVariableNames(space, outputField.Value));
+                MakeButton(ui, "Output names of linked Variables", () => OutputVariableNames(space));
 
             if (Config.GetValue(EnableVariableHierarchy))
-                MakeButton(ui, "Output tree of linked Variable Hierarchy", () => OutputVariableHierarchy(space, outputField.Value));
-
-            SyncMemberEditorBuilder.BuildField(outputField.Value, "Output", outputField.GetSyncMemberFieldInfo("Value"), ui);
+                MakeButton(ui, "Output tree of linked Variable Hierarchy", () => OutputVariableHierarchy(space));
         }
 
         private static void MakeButton(UIBuilder ui, string text, Action action)
         {
             var button = ui.Button(text);
-            button.RequireLockInToPress.Value = true;
-
-            var valueField = button.Slot.AttachComponent<ValueField<bool>>().Value;
-
-            var toggle = button.Slot.AttachComponent<ButtonToggle>();
-            toggle.TargetValue.Target = valueField;
-
-            valueField.OnValueChange += field => action();
+            button.LocalPressed += (b, e) => action();
         }
 
-        private static void OutputVariableHierarchy(DynamicVariableSpace space, Sync<string> target)
+        private static void OutputVariableHierarchy(DynamicVariableSpace space)
         {
             var hierarchy = new SpaceTree(space);
 
             if (hierarchy.Process())
-                target.Value = hierarchy.ToString();
-            else
-                target.Value = "";
+            {
+                var outslot = space.LocalUserSpace.AddSlot("Variable Hierarchy");
+                UniversalImporter.SpawnText(outslot, "Variable Hierarchy", hierarchy.ToString());
+                outslot.PositionInFrontOfUser(float3.Backward);
+            }
         }
 
-        private static void OutputVariableNames(DynamicVariableSpace space, Sync<string> target)
+        private static void OutputVariableNames(DynamicVariableSpace space)
         {
             var names = new StringBuilder("Variables linked to Namespace ");
             names.Append(space.SpaceName);
             names.AppendLine(":");
 
-            foreach (var identity in space._dynamicValues.Keys)
+            var values = Traverse.Create(space).Field("_dynamicValues").GetValue() as IDictionary;
+
+            foreach (var identity in values.Keys)
             {
-                names.Append(identity.name);
-                names.Append(" (");
-                names.AppendTypeName(identity.type);
-                names.AppendLine(")");
+                var name = Traverse.Create(identity).Field("name").GetValue() as string;
+                var type = Traverse.Create(identity).Field("type").GetValue() as Type;
+                names.AppendLine($"{name} ({type})");
             }
 
             names.Remove(names.Length - Environment.NewLine.Length, Environment.NewLine.Length);
 
-            target.Value = names.ToString();
+            var outslot = space.LocalUserSpace.AddSlot("Variable Names");
+            UniversalImporter.SpawnText(outslot, "Variable Names", names.ToString());
+            outslot.PositionInFrontOfUser(float3.Backward);
         }
     }
 }
